@@ -1,2 +1,1030 @@
-# Visualisasi
-Visual Peta
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Surveilans ILI – Puskesmas Pekauman</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #0a0e1a;
+    --bg2:       #111827;
+    --card:      #161d2e;
+    --card2:     #1c2539;
+    --border:    #2a3550;
+    --accent:    #3b82f6;
+    --accent2:   #60a5fa;
+    --h3n2:      #f59e0b;
+    --h1n1:      #ef4444;
+    --vic:       #10b981;
+    --neg:       #64748b;
+    --covid:     #f43f5e;
+    --text:      #e2e8f0;
+    --muted:     #94a3b8;
+    --glow:      rgba(59,130,246,0.15);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* NOISE TEXTURE */
+  body::before {
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events:none;
+    z-index:0;
+  }
+
+  /* HEADER */
+  header {
+    position: relative;
+    padding: 32px 40px 24px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    overflow: hidden;
+  }
+  header::after {
+    content:'';
+    position:absolute;
+    top:-60px; right:-60px;
+    width:300px; height:300px;
+    background: radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 70%);
+    pointer-events:none;
+  }
+  .header-top {
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-bottom:8px;
+  }
+  .header-badge {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background: rgba(59,130,246,0.15);
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius:999px;
+    padding:4px 14px;
+    font-size:11px;
+    font-weight:600;
+    color: var(--accent2);
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+  }
+  .pulse {
+    width:7px; height:7px;
+    border-radius:50%;
+    background: #22c55e;
+    box-shadow: 0 0 8px #22c55e;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
+
+  h1 {
+    font-size: clamp(20px, 3vw, 30px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height:1.1;
+    background: linear-gradient(135deg, #fff 30%, #93c5fd 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header-sub {
+    font-size:13px;
+    color: var(--muted);
+    margin-top:6px;
+    font-weight:300;
+  }
+  .header-sub span {
+    color: var(--accent2);
+    font-weight:600;
+  }
+
+  /* MAIN LAYOUT */
+  main {
+    position:relative;
+    z-index:1;
+    padding: 28px 40px 60px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* SECTION LABEL */
+  .section-label {
+    font-size:10px;
+    font-weight:600;
+    letter-spacing:0.15em;
+    text-transform:uppercase;
+    color: var(--muted);
+    margin-bottom:14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .section-label::after {
+    content:'';
+    flex:1;
+    height:1px;
+    background: var(--border);
+  }
+
+  /* STAT CARDS */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  @media(max-width:1100px){ .stats-grid{ grid-template-columns: repeat(3,1fr); } }
+  @media(max-width:600px){ .stats-grid{ grid-template-columns: repeat(2,1fr); } }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 16px;
+    position:relative;
+    overflow:hidden;
+    transition: transform 0.2s, border-color 0.2s;
+    cursor:default;
+  }
+  .stat-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .stat-card::before {
+    content:'';
+    position:absolute;
+    top:0; left:0; right:0;
+    height:2px;
+    background: var(--card-accent, var(--accent));
+  }
+  .stat-card .stat-icon {
+    font-size:20px;
+    margin-bottom:10px;
+    display:block;
+  }
+  .stat-card .stat-val {
+    font-size:32px;
+    font-weight:800;
+    line-height:1;
+    color: var(--card-accent, var(--accent2));
+    font-family: 'DM Mono', monospace;
+    margin-bottom:4px;
+  }
+  .stat-card .stat-label {
+    font-size:11px;
+    color: var(--muted);
+    font-weight:500;
+    letter-spacing:0.03em;
+  }
+  .stat-card .stat-sub {
+    font-size:10px;
+    color: var(--muted);
+    margin-top:6px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* CHART GRID */
+  .chart-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .chart-grid-3 {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  @media(max-width:900px){
+    .chart-grid-2, .chart-grid-3 { grid-template-columns:1fr; }
+  }
+
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    position:relative;
+    overflow:hidden;
+  }
+  .chart-card::after {
+    content:'';
+    position:absolute;
+    top:0;right:0;
+    width:120px;height:120px;
+    background: radial-gradient(circle at top right, var(--glow), transparent 70%);
+    pointer-events:none;
+  }
+  .chart-title {
+    font-size:13px;
+    font-weight:700;
+    color: var(--text);
+    margin-bottom:4px;
+    letter-spacing:-0.01em;
+  }
+  .chart-subtitle {
+    font-size:11px;
+    color: var(--muted);
+    margin-bottom:18px;
+  }
+  .chart-wrap {
+    position:relative;
+    width:100%;
+  }
+
+  /* MAP SECTION */
+  .map-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 24px;
+    min-height: 420px;
+  }
+  @media(max-width:900px){ .map-section{ grid-template-columns:1fr; } }
+
+  .map-title {
+    font-size:13px;
+    font-weight:700;
+    color: var(--text);
+    margin-bottom:4px;
+  }
+  .map-subtitle {
+    font-size:11px;
+    color: var(--muted);
+    margin-bottom:18px;
+  }
+
+  /* SVG MAP */
+  .map-container {
+    position:relative;
+    background: #0d1424;
+    border-radius:12px;
+    border: 1px solid var(--border);
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .map-container svg {
+    width:100%;
+    height:100%;
+    max-height:360px;
+  }
+
+  /* Region clickable areas */
+  .region-area {
+    cursor:pointer;
+    transition: opacity 0.2s;
+  }
+  .region-area:hover { opacity:0.85; }
+  .region-area.active ellipse, .region-area.active circle { filter: drop-shadow(0 0 12px currentColor); }
+
+  /* REGION PANEL */
+  .region-panel { display:flex; flex-direction:column; gap:10px; }
+  .region-card {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius:12px;
+    padding:14px 16px;
+    cursor:pointer;
+    transition: all 0.2s;
+    position:relative;
+    overflow:hidden;
+  }
+  .region-card::before {
+    content:'';
+    position:absolute;
+    left:0;top:0;bottom:0;
+    width:3px;
+    background: var(--rc-color, var(--accent));
+    border-radius:3px 0 0 3px;
+  }
+  .region-card:hover, .region-card.active {
+    border-color: var(--rc-color, var(--accent));
+    background: rgba(59,130,246,0.08);
+  }
+  .rc-name {
+    font-size:12px;
+    font-weight:700;
+    color: var(--text);
+    margin-bottom:8px;
+  }
+  .rc-stats {
+    display:grid;
+    grid-template-columns: repeat(3,1fr);
+    gap:6px;
+  }
+  .rc-stat {
+    text-align:center;
+  }
+  .rc-stat-val {
+    font-size:20px;
+    font-weight:800;
+    font-family:'DM Mono',monospace;
+    color: var(--rc-color, var(--accent2));
+    line-height:1;
+  }
+  .rc-stat-lbl {
+    font-size:9px;
+    color: var(--muted);
+    margin-top:2px;
+    font-weight:500;
+  }
+
+  .detail-panel {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius:12px;
+    padding:14px 16px;
+    margin-top:4px;
+  }
+  .detail-title {
+    font-size:11px;
+    font-weight:600;
+    color: var(--muted);
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  .detail-row {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding: 5px 0;
+    border-bottom:1px solid var(--border);
+    font-size:12px;
+  }
+  .detail-row:last-child { border-bottom:none; }
+  .detail-key { color: var(--muted); }
+  .detail-val { font-weight:700; font-family:'DM Mono',monospace; color: var(--text); }
+
+  /* LEGEND */
+  .legend {
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-top:12px;
+  }
+  .legend-item {
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:11px;
+    color: var(--muted);
+  }
+  .legend-dot {
+    width:10px;height:10px;
+    border-radius:50%;
+    flex-shrink:0;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top:1px solid var(--border);
+    padding:16px 40px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:11px;
+    color: var(--muted);
+    position:relative;
+    z-index:1;
+  }
+
+  /* TOOLTIP */
+  .tooltip {
+    position:fixed;
+    background: var(--card2);
+    border:1px solid var(--accent);
+    border-radius:8px;
+    padding:10px 14px;
+    font-size:12px;
+    pointer-events:none;
+    z-index:999;
+    opacity:0;
+    transition:opacity 0.15s;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .tooltip.show { opacity:1; }
+  .tooltip strong { color:var(--accent2); display:block; margin-bottom:4px; font-size:13px; }
+
+  /* ANIMATE IN */
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(16px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  .stat-card, .chart-card, .map-section {
+    animation: fadeUp 0.5s ease both;
+  }
+  .stat-card:nth-child(1){animation-delay:0.05s}
+  .stat-card:nth-child(2){animation-delay:0.10s}
+  .stat-card:nth-child(3){animation-delay:0.15s}
+  .stat-card:nth-child(4){animation-delay:0.20s}
+  .stat-card:nth-child(5){animation-delay:0.25s}
+  .stat-card:nth-child(6){animation-delay:0.30s}
+
+  /* GRID LINE BACKGROUND */
+  .chart-card, .map-section {
+    background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-position: top left;
+  }
+  .chart-card > *, .map-section > * { position:relative; z-index:1; }
+  .chart-card, .map-section { background-color: var(--card); }
+</style>
+</head>
+<body>
+
+<div class="tooltip" id="tooltip"></div>
+
+<header>
+  <div class="header-top">
+    <div class="header-badge"><div class="pulse"></div> Live Dashboard</div>
+  </div>
+  <h1>Surveilans ILI<br>Puskesmas Pekauman</h1>
+  <p class="header-sub">Influenza-Like Illness · Kalimantan Selatan · <span>2024–2025</span></p>
+</header>
+
+<main>
+
+  <!-- STAT CARDS -->
+  <div class="section-label">Ringkasan Keseluruhan</div>
+  <div class="stats-grid">
+    <div class="stat-card" style="--card-accent:#60a5fa">
+      <span class="stat-icon">🧬</span>
+      <div class="stat-val">151</div>
+      <div class="stat-label">Total Kasus ILI</div>
+      <div class="stat-sub">77L · 74P</div>
+    </div>
+    <div class="stat-card" style="--card-accent:#f59e0b">
+      <span class="stat-icon">🦠</span>
+      <div class="stat-val">69</div>
+      <div class="stat-label">Influenza A (H3N2)</div>
+      <div class="stat-sub">45.7% dari total</div>
+    </div>
+    <div class="stat-card" style="--card-accent:#ef4444">
+      <span class="stat-icon">🔬</span>
+      <div class="stat-val">6</div>
+      <div class="stat-label">Influenza A (H1N1)</div>
+      <div class="stat-sub">4.0% dari total</div>
+    </div>
+    <div class="stat-card" style="--card-accent:#10b981">
+      <span class="stat-icon">🧪</span>
+      <div class="stat-val">4</div>
+      <div class="stat-label">Influenza B Victoria</div>
+      <div class="stat-sub">2.6% dari total</div>
+    </div>
+    <div class="stat-card" style="--card-accent:#64748b">
+      <span class="stat-icon">✅</span>
+      <div class="stat-val">55</div>
+      <div class="stat-label">Negatif Influenza</div>
+      <div class="stat-sub">36.4% dari total</div>
+    </div>
+    <div class="stat-card" style="--card-accent:#f43f5e">
+      <span class="stat-icon">⚠️</span>
+      <div class="stat-val">1</div>
+      <div class="stat-label">COVID-19 Positif</div>
+      <div class="stat-sub">dari 151 spesimen</div>
+    </div>
+  </div>
+
+  <!-- MAP + REGION PANEL -->
+  <div class="section-label">Distribusi Per Wilayah</div>
+  <div class="map-section">
+    <div>
+      <div class="map-title">🗺 Peta Persebaran Kasus</div>
+      <div class="map-subtitle">Klik wilayah untuk melihat detail · ukuran bubble = jumlah kasus</div>
+      <div class="map-container" style="height:340px;">
+        <svg viewBox="0 0 500 340" xmlns="http://www.w3.org/2000/svg">
+          <!-- Kalimantan outline simplified -->
+          <defs>
+            <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" style="stop-color:#1a2744;stop-opacity:1"/>
+              <stop offset="100%" style="stop-color:#0d1424;stop-opacity:1"/>
+            </radialGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="4" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <rect width="500" height="340" fill="url(#bgGrad)"/>
+
+          <!-- Grid lines -->
+          <g stroke="#1e2d4a" stroke-width="0.5" opacity="0.5">
+            <line x1="0" y1="85" x2="500" y2="85"/>
+            <line x1="0" y1="170" x2="500" y2="170"/>
+            <line x1="0" y1="255" x2="500" y2="255"/>
+            <line x1="125" y1="0" x2="125" y2="340"/>
+            <line x1="250" y1="0" x2="250" y2="340"/>
+            <line x1="375" y1="0" x2="375" y2="340"/>
+          </g>
+
+          <!-- Kalimantan island shape (simplified) -->
+          <path d="M60,60 Q90,40 140,50 Q190,35 240,45 Q290,30 340,50 Q390,40 430,70 Q460,90 450,130 Q440,160 430,190 Q420,220 400,250 Q370,280 340,300 Q300,320 260,315 Q220,320 180,300 Q140,290 110,260 Q80,230 65,190 Q50,160 55,120 Q55,90 60,60Z" 
+                fill="#1a3a5c" stroke="#2a5a8c" stroke-width="1" opacity="0.6"/>
+
+          <!-- Laut labels -->
+          <text x="30" y="180" fill="#1e3a5f" font-size="8" font-family="Sora" opacity="0.8">LAUT JAWA</text>
+          <text x="380" y="50" fill="#1e3a5f" font-size="8" font-family="Sora" opacity="0.8">LAUT SULAWESI</text>
+
+          <!-- KOTA BANJARMASIN - bubble besar -->
+          <g class="region-area active" id="area-banjarmasin" onclick="selectRegion('KOTA BANJARMASIN')" data-region="KOTA BANJARMASIN">
+            <!-- Ripple effect -->
+            <circle cx="210" cy="240" r="55" fill="#3b82f6" opacity="0.05">
+              <animate attributeName="r" values="50;70;50" dur="3s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.05;0.01;0.05" dur="3s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="210" cy="240" r="45" fill="#3b82f6" opacity="0.08"/>
+            <circle cx="210" cy="240" r="34" fill="#1d4ed8" opacity="0.6" stroke="#60a5fa" stroke-width="1.5" filter="url(#glow)"/>
+            <circle cx="210" cy="240" r="6" fill="#60a5fa"/>
+            <text x="210" y="200" text-anchor="middle" fill="#93c5fd" font-size="9" font-family="Sora" font-weight="600">KOTA</text>
+            <text x="210" y="212" text-anchor="middle" fill="#93c5fd" font-size="9" font-family="Sora" font-weight="600">BANJARMASIN</text>
+            <text x="210" y="247" text-anchor="middle" fill="white" font-size="11" font-family="DM Mono" font-weight="500">147</text>
+          </g>
+
+          <!-- BANJAR - bubble kecil -->
+          <g class="region-area" id="area-banjar" onclick="selectRegion('BANJAR')" data-region="BANJAR">
+            <circle cx="290" cy="235" r="18" fill="#f59e0b" opacity="0.08"/>
+            <circle cx="290" cy="235" r="12" fill="#92400e" opacity="0.7" stroke="#f59e0b" stroke-width="1.5"/>
+            <circle cx="290" cy="235" r="4" fill="#fbbf24"/>
+            <text x="290" y="220" text-anchor="middle" fill="#fcd34d" font-size="8" font-family="Sora" font-weight="600">BANJAR</text>
+            <text x="290" y="239" text-anchor="middle" fill="white" font-size="9" font-family="DM Mono">3</text>
+          </g>
+
+          <!-- MURUNG RAYA - bubble kecil di utara -->
+          <g class="region-area" id="area-murung" onclick="selectRegion('MURUNG RAYA')" data-region="MURUNG RAYA">
+            <circle cx="220" cy="105" r="14" fill="#10b981" opacity="0.08"/>
+            <circle cx="220" cy="105" r="9" fill="#065f46" opacity="0.7" stroke="#10b981" stroke-width="1.5"/>
+            <circle cx="220" cy="105" r="3" fill="#34d399"/>
+            <text x="220" y="91" text-anchor="middle" fill="#6ee7b7" font-size="7.5" font-family="Sora" font-weight="600">MURUNG</text>
+            <text x="220" y="100" text-anchor="middle" fill="#6ee7b7" font-size="7.5" font-family="Sora" font-weight="600">RAYA</text>
+            <text x="220" y="108" text-anchor="middle" fill="white" font-size="9" font-family="DM Mono">1</text>
+          </g>
+
+          <!-- Connector lines -->
+          <line x1="210" y1="240" x2="290" y2="235" stroke="#2a3550" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.5"/>
+          <line x1="210" y1="240" x2="220" y2="105" stroke="#2a3550" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.5"/>
+
+          <!-- Scale -->
+          <g transform="translate(20,300)">
+            <text x="0" y="0" fill="#475569" font-size="7" font-family="Sora">Ukuran = Jumlah Kasus</text>
+            <circle cx="0" cy="12" r="3" fill="#3b82f6" opacity="0.5"/>
+            <text x="8" y="15" fill="#475569" font-size="7" font-family="Sora">1–10</text>
+            <circle cx="40" cy="12" r="6" fill="#3b82f6" opacity="0.5"/>
+            <text x="52" y="15" fill="#475569" font-size="7" font-family="Sora">50–100</text>
+            <circle cx="100" cy="12" r="10" fill="#3b82f6" opacity="0.5"/>
+            <text x="115" y="15" fill="#475569" font-size="7" font-family="Sora">100+</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- REGION CARDS -->
+    <div class="region-panel">
+      <div class="region-card active" style="--rc-color:#60a5fa" id="card-banjarmasin" onclick="selectRegion('KOTA BANJARMASIN')">
+        <div class="rc-name">🏙 Kota Banjarmasin</div>
+        <div class="rc-stats">
+          <div class="rc-stat">
+            <div class="rc-stat-val" style="color:#60a5fa">147</div>
+            <div class="rc-stat-lbl">Total Kasus</div>
+          </div>
+          <div class="rc-stat">
+            <div class="rc-stat-val" style="color:#f59e0b">77</div>
+            <div class="rc-stat-lbl">Flu Positif</div>
+          </div>
+          <div class="rc-stat">
+            <div class="rc-stat-val" style="color:#f43f5e">1</div>
+            <div class="rc-stat-lbl">COVID</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="region-card" style="--rc-color:#f59e0b" id="card-banjar" onclick="selectRegion('BANJAR')">
+        <div class="rc-name">🏘 Kabupaten Banjar</div>
+        <div class="rc-stats">
+          <div class="rc-stat">
+            <div class="rc-stat-val" style="color:#f59e0b">3</div>
+            <div class="rc-stat-lbl">Total Kasus</div>
+          </div>
+          <div class="rc-stat">
+            <div class="rc-stat-val" style="color:#f59e0b">2</div>
+            <div class="rc-stat-lbl">Flu Positif</div>
+          </div>
+          <div class="rc-stat">
+            <div class="rc-stat-val" style="color:#64748b">0</div>
+            <div class="rc-stat-lbl">COVID</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="region-card" style="--rc-color:#10b981" id="card-murung" onclick="selectRegion('MURUNG RAYA')">
+        <div class="rc-name">🌿 Murung Raya</div>
+        <div class="rc-stats">
+          <div class="rc-stat">
+            <div class="rc-stat-val" style="color:#10b981">1</div>
+            <div class="rc-stat-lbl">Total Kasus</div>
+          </div>
+          <div class="rc-stat">
+            <div class="rc-stat-val" style="color:#64748b">0</div>
+            <div class="rc-stat-lbl">Flu Positif</div>
+          </div>
+          <div class="rc-stat">
+            <div class="rc-stat-val" style="color:#64748b">0</div>
+            <div class="rc-stat-lbl">COVID</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-panel" id="detail-panel">
+        <div class="detail-title" id="detail-title">Detail: Kota Banjarmasin</div>
+        <div id="detail-rows">
+          <div class="detail-row"><span class="detail-key">Total Kasus</span><span class="detail-val">147</span></div>
+          <div class="detail-row"><span class="detail-key">Influenza A H3N2</span><span class="detail-val" style="color:#f59e0b">69</span></div>
+          <div class="detail-row"><span class="detail-key">Influenza A H1N1</span><span class="detail-val" style="color:#ef4444">6</span></div>
+          <div class="detail-row"><span class="detail-key">Influenza B</span><span class="detail-val" style="color:#10b981">2</span></div>
+          <div class="detail-row"><span class="detail-key">Negatif</span><span class="detail-val" style="color:#64748b">54</span></div>
+          <div class="detail-row"><span class="detail-key">Laki-laki</span><span class="detail-val">75</span></div>
+          <div class="detail-row"><span class="detail-key">Perempuan</span><span class="detail-val">72</span></div>
+          <div class="detail-row"><span class="detail-key">COVID-19</span><span class="detail-val" style="color:#f43f5e">1</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 1 -->
+  <div class="section-label">Tren & Distribusi</div>
+  <div class="chart-grid-2" style="grid-template-columns: 3fr 2fr; margin-bottom:16px;">
+    <div class="chart-card">
+      <div class="chart-title">📈 Tren Kasus ILI per Bulan</div>
+      <div class="chart-subtitle">Distribusi subtipe influenza (Januari – Desember 2025)</div>
+      <div class="chart-wrap" style="height:230px">
+        <canvas id="chartTrend"></canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div>Total Kasus</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>A (H3N2)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>A (H1N1)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>B (Victoria)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#64748b"></div>Negatif</div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🥧 Distribusi Subtipe Influenza</div>
+      <div class="chart-subtitle">Dari 79 kasus positif influenza</div>
+      <div class="chart-wrap" style="height:230px">
+        <canvas id="chartPie"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 2 -->
+  <div class="chart-grid-2" style="grid-template-columns: 1fr 1fr;">
+    <div class="chart-card">
+      <div class="chart-title">👥 Distribusi Kelompok Umur</div>
+      <div class="chart-subtitle">Total kasus vs positif influenza per kelompok usia</div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chartAge"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">⚖️ Distribusi Jenis Kelamin</div>
+      <div class="chart-subtitle">Per wilayah pasien</div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chartGender"></canvas>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <span>Puskesmas Pekauman · Kalimantan Selatan · Data 2024–2025</span>
+  <span>Surveilans ILI · BBKK Banjarbaru</span>
+</footer>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const DATA = {
+  monthly: [
+    {b:'Jan',total:1,h3n2:0,h1n1:1,vic:0,neg:0,covid:0},
+    {b:'Feb',total:1,h3n2:1,h1n1:0,vic:0,neg:0,covid:0},
+    {b:'Mar',total:2,h3n2:2,h1n1:0,vic:0,neg:0,covid:0},
+    {b:'Mei',total:2,h3n2:0,h1n1:0,vic:0,neg:2,covid:0},
+    {b:'Jun',total:9,h3n2:0,h1n1:0,vic:0,neg:9,covid:0},
+    {b:'Jul',total:3,h3n2:1,h1n1:0,vic:0,neg:2,covid:0},
+    {b:'Agu',total:3,h3n2:1,h1n1:0,vic:0,neg:2,covid:0},
+    {b:'Sep',total:39,h3n2:28,h1n1:1,vic:0,neg:10,covid:0},
+    {b:'Okt',total:53,h3n2:32,h1n1:4,vic:1,neg:16,covid:0},
+    {b:'Nov',total:15,h3n2:4,h1n1:0,vic:1,neg:10,covid:1},
+    {b:'Des',total:6,h3n2:0,h1n1:0,vic:2,neg:4,covid:0},
+  ],
+  region: {
+    'KOTA BANJARMASIN': {total:147,flu_pos:77,neg:54,pending:16,covid:1,laki:75,perempuan:72,h3n2:69,h1n1:6,vic:2},
+    'BANJAR':           {total:3, flu_pos:2, neg:1, pending:0, covid:0,laki:2, perempuan:1, h3n2:2, h1n1:0,vic:0},
+    'MURUNG RAYA':      {total:1, flu_pos:0, neg:0, pending:1, covid:0,laki:0, perempuan:1, h3n2:0, h1n1:0,vic:0},
+  },
+  age: [
+    {grp:'0–4',total:27,pos:14},
+    {grp:'5–14',total:58,pos:35},
+    {grp:'15–24',total:25,pos:12},
+    {grp:'25–44',total:30,pos:13},
+    {grp:'45–64',total:9,pos:3},
+    {grp:'65+',total:2,pos:2},
+  ]
+};
+
+const COLORS = {
+  accent:'#60a5fa', h3n2:'#f59e0b', h1n1:'#ef4444',
+  vic:'#10b981', neg:'#64748b', covid:'#f43f5e',
+};
+
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.font.family = "'Sora', sans-serif";
+Chart.defaults.font.size = 11;
+
+// ============================================================
+// CHART 1: Trend Line
+// ============================================================
+const ctxTrend = document.getElementById('chartTrend').getContext('2d');
+const trendGrad = ctxTrend.createLinearGradient(0,0,0,200);
+trendGrad.addColorStop(0,'rgba(96,165,250,0.3)');
+trendGrad.addColorStop(1,'rgba(96,165,250,0)');
+
+new Chart(ctxTrend, {
+  type:'line',
+  data:{
+    labels: DATA.monthly.map(d=>d.b),
+    datasets:[
+      {
+        label:'Total Kasus', data:DATA.monthly.map(d=>d.total),
+        borderColor:'#60a5fa', backgroundColor:trendGrad,
+        fill:true, tension:0.4, borderWidth:2.5,
+        pointBackgroundColor:'#60a5fa', pointRadius:4, pointHoverRadius:6,
+      },
+      {
+        label:'A (H3N2)', data:DATA.monthly.map(d=>d.h3n2),
+        borderColor:'#f59e0b', backgroundColor:'transparent',
+        fill:false, tension:0.4, borderWidth:2, borderDash:[],
+        pointBackgroundColor:'#f59e0b', pointRadius:3, pointHoverRadius:5,
+      },
+      {
+        label:'A (H1N1)', data:DATA.monthly.map(d=>d.h1n1),
+        borderColor:'#ef4444', backgroundColor:'transparent',
+        fill:false, tension:0.4, borderWidth:2,
+        pointBackgroundColor:'#ef4444', pointRadius:3, pointHoverRadius:5,
+      },
+      {
+        label:'B (Victoria)', data:DATA.monthly.map(d=>d.vic),
+        borderColor:'#10b981', backgroundColor:'transparent',
+        fill:false, tension:0.4, borderWidth:2,
+        pointBackgroundColor:'#10b981', pointRadius:3, pointHoverRadius:5,
+      },
+      {
+        label:'Negatif', data:DATA.monthly.map(d=>d.neg),
+        borderColor:'#64748b', backgroundColor:'transparent',
+        fill:false, tension:0.4, borderWidth:1.5, borderDash:[4,4],
+        pointBackgroundColor:'#64748b', pointRadius:2, pointHoverRadius:4,
+      },
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#1c2539',
+        borderColor:'#3b82f6', borderWidth:1,
+        callbacks:{
+          label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} kasus`
+        }
+      }
+    },
+    scales:{
+      x:{
+        grid:{color:'rgba(42,53,80,0.5)'},
+        ticks:{color:'#64748b'}
+      },
+      y:{
+        grid:{color:'rgba(42,53,80,0.5)'},
+        ticks:{color:'#64748b', stepSize:10},
+        beginAtZero:true
+      }
+    }
+  }
+});
+
+// ============================================================
+// CHART 2: Pie
+// ============================================================
+new Chart(document.getElementById('chartPie').getContext('2d'), {
+  type:'doughnut',
+  data:{
+    labels:['A (H3N2)','A (H1N1Pdm09)','B (Victoria)','Negatif'],
+    datasets:[{
+      data:[69,6,4,55],
+      backgroundColor:['#f59e0b','#ef4444','#10b981','#334155'],
+      borderColor:'#161d2e',
+      borderWidth:3,
+      hoverOffset:8,
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    cutout:'65%',
+    plugins:{
+      legend:{
+        position:'bottom',
+        labels:{padding:16, usePointStyle:true, pointStyleWidth:10}
+      },
+      tooltip:{
+        backgroundColor:'#1c2539',
+        borderColor:'#3b82f6', borderWidth:1,
+        callbacks:{
+          label: ctx => ` ${ctx.label}: ${ctx.parsed} kasus (${((ctx.parsed/134)*100).toFixed(1)}%)`
+        }
+      }
+    }
+  }
+});
+
+// ============================================================
+// CHART 3: Age Group Bar
+// ============================================================
+new Chart(document.getElementById('chartAge').getContext('2d'), {
+  type:'bar',
+  data:{
+    labels: DATA.age.map(d=>d.grp),
+    datasets:[
+      {
+        label:'Total Kasus',
+        data: DATA.age.map(d=>d.total),
+        backgroundColor:'rgba(96,165,250,0.25)',
+        borderColor:'#60a5fa', borderWidth:1.5, borderRadius:4,
+      },
+      {
+        label:'Positif Influenza',
+        data: DATA.age.map(d=>d.pos),
+        backgroundColor:'rgba(245,158,11,0.6)',
+        borderColor:'#f59e0b', borderWidth:1.5, borderRadius:4,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{position:'top', labels:{usePointStyle:true, pointStyleWidth:10}},
+      tooltip:{
+        backgroundColor:'#1c2539', borderColor:'#3b82f6', borderWidth:1
+      }
+    },
+    scales:{
+      x:{grid:{color:'rgba(42,53,80,0.5)'}, ticks:{color:'#64748b'}},
+      y:{grid:{color:'rgba(42,53,80,0.5)'}, ticks:{color:'#64748b'}, beginAtZero:true}
+    }
+  }
+});
+
+// ============================================================
+// CHART 4: Gender stacked bar
+// ============================================================
+new Chart(document.getElementById('chartGender').getContext('2d'), {
+  type:'bar',
+  data:{
+    labels:['Kota Banjarmasin','Banjar','Murung Raya'],
+    datasets:[
+      {
+        label:'Laki-Laki',
+        data:[75,2,0],
+        backgroundColor:'rgba(96,165,250,0.7)',
+        borderColor:'#60a5fa', borderWidth:1.5, borderRadius:4,
+      },
+      {
+        label:'Perempuan',
+        data:[72,1,1],
+        backgroundColor:'rgba(244,63,94,0.6)',
+        borderColor:'#f43f5e', borderWidth:1.5, borderRadius:4,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    indexAxis:'y',
+    plugins:{
+      legend:{position:'top', labels:{usePointStyle:true, pointStyleWidth:10}},
+      tooltip:{
+        backgroundColor:'#1c2539', borderColor:'#3b82f6', borderWidth:1
+      }
+    },
+    scales:{
+      x:{
+        stacked:true,
+        grid:{color:'rgba(42,53,80,0.5)'}, ticks:{color:'#64748b'}
+      },
+      y:{
+        stacked:true,
+        grid:{color:'rgba(42,53,80,0.5)'}, ticks:{color:'#64748b'}
+      }
+    }
+  }
+});
+
+// ============================================================
+// INTERACTIVE MAP: selectRegion
+// ============================================================
+const REGION_DETAIL = {
+  'KOTA BANJARMASIN': {
+    title:'Kota Banjarmasin',
+    rows:[
+      {k:'Total Kasus',   v:'147', c:'#60a5fa'},
+      {k:'Influenza A H3N2', v:'69', c:'#f59e0b'},
+      {k:'Influenza A H1N1', v:'6',  c:'#ef4444'},
+      {k:'Influenza B',   v:'2',  c:'#10b981'},
+      {k:'Negatif',       v:'54', c:'#64748b'},
+      {k:'Pending',       v:'16', c:'#94a3b8'},
+      {k:'Laki-laki',     v:'75', c:'#60a5fa'},
+      {k:'Perempuan',     v:'72', c:'#f43f5e'},
+      {k:'COVID-19 (+)',  v:'1',  c:'#f43f5e'},
+    ]
+  },
+  'BANJAR': {
+    title:'Kabupaten Banjar',
+    rows:[
+      {k:'Total Kasus',   v:'3',  c:'#f59e0b'},
+      {k:'Influenza A H3N2', v:'2', c:'#f59e0b'},
+      {k:'Influenza A H1N1', v:'0', c:'#ef4444'},
+      {k:'Influenza B',   v:'0',  c:'#10b981'},
+      {k:'Negatif',       v:'1',  c:'#64748b'},
+      {k:'Laki-laki',     v:'2',  c:'#60a5fa'},
+      {k:'Perempuan',     v:'1',  c:'#f43f5e'},
+      {k:'COVID-19 (+)',  v:'0',  c:'#64748b'},
+    ]
+  },
+  'MURUNG RAYA': {
+    title:'Murung Raya',
+    rows:[
+      {k:'Total Kasus',   v:'1',  c:'#10b981'},
+      {k:'Influenza A H3N2', v:'0', c:'#64748b'},
+      {k:'Influenza A H1N1', v:'0', c:'#64748b'},
+      {k:'Influenza B',   v:'0',  c:'#64748b'},
+      {k:'Negatif',       v:'0',  c:'#64748b'},
+      {k:'Pending',       v:'1',  c:'#94a3b8'},
+      {k:'Laki-laki',     v:'0',  c:'#60a5fa'},
+      {k:'Perempuan',     v:'1',  c:'#f43f5e'},
+      {k:'COVID-19 (+)',  v:'0',  c:'#64748b'},
+    ]
+  }
+};
+
+const CARD_IDS = {
+  'KOTA BANJARMASIN':'card-banjarmasin',
+  'BANJAR':'card-banjar',
+  'MURUNG RAYA':'card-murung',
+};
+const AREA_IDS = {
+  'KOTA BANJARMASIN':'area-banjarmasin',
+  'BANJAR':'area-banjar',
+  'MURUNG RAYA':'area-murung',
+};
+
+function selectRegion(name) {
+  // Reset all
+  document.querySelectorAll('.region-card').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('.region-area').forEach(a=>a.classList.remove('active'));
+
+  // Activate selected
+  const card = document.getElementById(CARD_IDS[name]);
+  const area = document.getElementById(AREA_IDS[name]);
+  if(card) card.classList.add('active');
+  if(area) area.classList.add('active');
+
+  // Update detail panel
+  const d = REGION_DETAIL[name];
+  if(!d) return;
+  document.getElementById('detail-title').textContent = 'Detail: ' + d.title;
+  document.getElementById('detail-rows').innerHTML = d.rows.map(r =>
+    `<div class="detail-row">
+      <span class="detail-key">${r.k}</span>
+      <span class="detail-val" style="color:${r.c}">${r.v}</span>
+    </div>`
+  ).join('');
+}
+</script>
+</body>
+</html>
